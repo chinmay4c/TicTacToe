@@ -9,10 +9,14 @@
 </head>
 <body>
     <div class="game-container">
-        <h1>Tic-Tac-Toe v2</h1>
+        <h1>Tic-Tac-Toe v3</h1>
         <div class="controls">
             <button id="theme-toggle">Toggle Theme</button>
-            <select id="difficulty">
+            <select id="game-mode">
+                <option value="pvp">Player vs Player</option>
+                <option value="pvc">Player vs Computer</option>
+            </select>
+            <select id="difficulty" style="display: none;">
                 <option value="easy">Easy</option>
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
@@ -35,7 +39,9 @@
             <span>Player O: <span id="score-o">0</span></span>
         </div>
         <button id="reset">New Game</button>
+        <div id="timer">Time: 00:00</div>
     </div>
+    <div id="win-animation" class="confetti"></div>
     <script src="script.js"></script>
 </body>
 </html>
