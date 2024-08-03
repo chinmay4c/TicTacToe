@@ -1,37 +1,46 @@
 const board = document.getElementById('board');
-const cells = document.querySelectorAll('.cell');
 const status = document.getElementById('status');
 const resetButton = document.getElementById('reset');
 const themeToggle = document.getElementById('theme-toggle');
 const gameModeSelect = document.getElementById('game-mode');
 const difficultySelect = document.getElementById('difficulty');
+const boardSizeSelect = document.getElementById('board-size');
 const scoreX = document.getElementById('score-x');
 const scoreO = document.getElementById('score-o');
 const timerDisplay = document.getElementById('timer');
 const winAnimation = document.getElementById('win-animation');
+const moveHistory = document.getElementById('move-history');
 
 let currentPlayer = 'X';
-let gameState = ['', '', '', '', '', '', '', '', ''];
+let gameState;
 let gameActive = true;
 let scores = { X: 0, O: 0 };
 let aiPlayer = 'O';
 let gameMode = 'pvp';
+let boardSize = 3;
 let timer;
 let seconds = 0;
+let moves = [];
 
-const winningConditions = [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6]
-];
+function initializeGame() {
+    boardSize = parseInt(boardSizeSelect.value);
+    gameState = Array(boardSize * boardSize).fill('');
+    board.innerHTML = '';
+    board.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+    
+    for (let i = 0; i < boardSize * boardSize; i++) {
+        const cell = document.createElement('div');
+        cell.classList.add('cell');
+        cell.setAttribute('data-index', i);
+        cell.addEventListener('click', handleCellClick);
+        board.appendChild(cell);
+    }
 
-function handleCellClick(clickedCellEvent) {
-    const clickedCell = clickedCellEvent.target;
+    resetGame();
+}
+
+function handleCellClick(event) {
+    const clickedCell = event.target;
     const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
 
     if (gameState[clickedCellIndex] !== '' || !gameActive) {
@@ -41,27 +50,45 @@ function handleCellClick(clickedCellEvent) {
     gameState[clickedCellIndex] = currentPlayer;
     clickedCell.textContent = currentPlayer;
     clickedCell.classList.add('pop-in');
+    moves.push({ player: currentPlayer, position: clickedCellIndex });
+    updateMoveHistory();
 
     checkResult();
 
-    if (gameActive && gameMode === 'pvc' && currentPlayer !== aiPlayer) {
-        currentPlayer = aiPlayer;
-        setTimeout(makeAiMove, 500);
-    } else if (gameActive) {
+    if (gameActive) {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         status.textContent = `Player ${currentPlayer}'s turn`;
+
+        if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
+            setTimeout(makeAiMove, 500);
+        } else if (gameMode === 'cvc') {
+            setTimeout(makeAiMove, 500);
+        }
     }
 }
 
 function checkResult() {
+    const winningConditions = getWinningConditions();
     let roundWon = false;
+
     for (let i = 0; i < winningConditions.length; i++) {
-        const [a, b, c] = winningConditions[i];
-        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+        const winCondition = winningConditions[i];
+        let a = gameState[winCondition[0]];
+        if (a === '') continue;
+
+        let win = true;
+        for (let j = 1; j < winCondition.length; j++) {
+            if (gameState[winCondition[j]] !== a) {
+                win = false;
+                break;
+            }
+        }
+
+        if (win) {
             roundWon = true;
-            cells[a].classList.add('winning');
-            cells[b].classList.add('winning');
-            cells[c].classList.add('winning');
+            winCondition.forEach(index => {
+                document.querySelector(`[data-index="${index}"]`).classList.add('winning');
+            });
             break;
         }
     }
@@ -85,17 +112,43 @@ function checkResult() {
     }
 }
 
+function getWinningConditions() {
+    const winningConditions = [];
+
+    // Rows
+    for (let i = 0; i < boardSize; i++) {
+        winningConditions.push(Array.from({length: boardSize}, (_, j) => i * boardSize + j));
+    }
+
+    // Columns
+    for (let i = 0; i < boardSize; i++) {
+        winningConditions.push(Array.from({length: boardSize}, (_, j) => i + j * boardSize));
+    }
+
+    // Diagonals
+    winningConditions.push(Array.from({length: boardSize}, (_, i) => i * (boardSize + 1)));
+    winningConditions.push(Array.from({length: boardSize}, (_, i) => (i + 1) * (boardSize - 1)));
+
+    return winningConditions;
+}
+
 function resetGame() {
     currentPlayer = 'X';
-    gameState = ['', '', '', '', '', '', '', '', ''];
+    gameState = Array(boardSize * boardSize).fill('');
     gameActive = true;
+    moves = [];
     status.textContent = `Player ${currentPlayer}'s turn`;
-    cells.forEach(cell => {
+    document.querySelectorAll('.cell').forEach(cell => {
         cell.textContent = '';
         cell.classList.remove('pop-in', 'winning');
     });
     resetTimer();
     startTimer();
+    updateMoveHistory();
+
+    if (gameMode === 'cvc') {
+        makeAiMove();
+    }
 }
 
 function updateScoreDisplay() {
@@ -108,6 +161,8 @@ function toggleTheme() {
 }
 
 function makeAiMove() {
+    if (!gameActive) return;
+
     const difficulty = difficultySelect.value;
     let move;
 
@@ -124,15 +179,8 @@ function makeAiMove() {
     }
 
     if (move !== null) {
-        gameState[move] = aiPlayer;
-        cells[move].textContent = aiPlayer;
-        cells[move].classList.add('pop-in');
-        checkResult();
-    }
-
-    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-    if (gameActive) {
-        status.textContent = `Player ${currentPlayer}'s turn`;
+        const cell = document.querySelector(`[data-index="${move}"]`);
+        cell.click();
     }
 }
 
@@ -148,7 +196,7 @@ function getBestMove() {
     let bestScore = -Infinity;
     let bestMove;
 
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < gameState.length; i++) {
         if (gameState[i] === '') {
             gameState[i] = aiPlayer;
             let score = minimax(gameState, 0, false);
@@ -164,20 +212,14 @@ function getBestMove() {
 }
 
 function minimax(board, depth, isMaximizing) {
-    const scores = {
-        X: -1,
-        O: 1,
-        draw: 0
-    };
-
-    let result = checkWinner();
+    const result = checkWinner();
     if (result !== null) {
-        return scores[result];
+        return result === aiPlayer ? 1 : -1;
     }
 
     if (isMaximizing) {
         let bestScore = -Infinity;
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
                 board[i] = aiPlayer;
                 let score = minimax(board, depth + 1, false);
@@ -188,7 +230,7 @@ function minimax(board, depth, isMaximizing) {
         return bestScore;
     } else {
         let bestScore = Infinity;
-        for (let i = 0; i < 9; i++) {
+        for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
                 board[i] = aiPlayer === 'O' ? 'X' : 'O';
                 let score = minimax(board, depth + 1, true);
@@ -201,6 +243,7 @@ function minimax(board, depth, isMaximizing) {
 }
 
 function checkWinner() {
+    const winningConditions = getWinningConditions();
     for (let i = 0; i < winningConditions.length; i++) {
         const [a, b, c] = winningConditions[i];
         if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
@@ -213,7 +256,7 @@ function checkWinner() {
 
 function updateGameMode() {
     gameMode = gameModeSelect.value;
-    difficultySelect.style.display = gameMode === 'pvc' ? 'inline-block' : 'none';
+    difficultySelect.style.display = (gameMode === 'pvc' || gameMode === 'cvc') ? 'inline-block' : 'none';
     resetGame();
 }
 
@@ -259,11 +302,33 @@ function createConfetti() {
     }
 }
 
-cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+function updateMoveHistory() {
+    moveHistory.innerHTML = '';
+    moves.forEach((move, index) => {
+        const moveElement = document.createElement('div');
+        moveElement.textContent = `${index + 1}. Player ${move.player} -> ${getPositionName(move.position)}`;
+        moveHistory.appendChild(moveElement);
+    });
+    moveHistory.scrollTop = moveHistory.scrollHeight;
+}
+
+function getPositionName(position) {
+    const row = Math.floor(position / boardSize);
+    const col = position % boardSize;
+    return `Row ${row + 1}, Col ${col + 1}`;
+}
+
+function handleBoardSizeChange() {
+    initializeGame();
+}
+
+// Event listeners
 resetButton.addEventListener('click', resetGame);
 themeToggle.addEventListener('click', toggleTheme);
 gameModeSelect.addEventListener('change', updateGameMode);
+boardSizeSelect.addEventListener('change', handleBoardSizeChange);
 
 // Initialize the game
+initializeGame();
 updateGameMode();
 startTimer();
