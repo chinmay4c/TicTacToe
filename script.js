@@ -13,7 +13,7 @@ const moveHistory = document.getElementById('move-history');
 
 let currentPlayer = 'X';
 let gameState;
-let gameActive = true;
+let gameActive = false;
 let scores = { X: 0, O: 0 };
 let aiPlayer = 'O';
 let gameMode = 'pvp';
@@ -37,9 +37,12 @@ function initializeGame() {
     }
 
     resetGame();
+    updateGameModeUI();
 }
 
 function handleCellClick(event) {
+    if (!gameActive) return;
+
     const clickedCell = event.target;
     const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
 
@@ -53,11 +56,13 @@ function handleCellClick(event) {
     moves.push({ player: currentPlayer, position: clickedCellIndex });
     updateMoveHistory();
 
-    checkResult();
-
-    if (gameActive) {
+    if (checkWinner()) {
+        endGame(false);
+    } else if (isDraw()) {
+        endGame(true);
+    } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        status.textContent = `Player ${currentPlayer}'s turn`;
+        updateStatus(`Player ${currentPlayer}'s turn`);
 
         if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
             setTimeout(makeAiMove, 500);
@@ -67,77 +72,73 @@ function handleCellClick(event) {
     }
 }
 
-function checkResult() {
-    const winningConditions = getWinningConditions();
-    let roundWon = false;
-
-    for (let i = 0; i < winningConditions.length; i++) {
-        const winCondition = winningConditions[i];
-        let a = gameState[winCondition[0]];
-        if (a === '') continue;
-
-        let win = true;
-        for (let j = 1; j < winCondition.length; j++) {
-            if (gameState[winCondition[j]] !== a) {
-                win = false;
-                break;
-            }
-        }
-
-        if (win) {
-            roundWon = true;
-            winCondition.forEach(index => {
-                document.querySelector(`[data-index="${index}"]`).classList.add('winning');
-            });
-            break;
+function checkWinner() {
+    const winPatterns = getWinPatterns();
+    for (let pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+            highlightWinningCells(pattern);
+            return true;
         }
     }
-
-    if (roundWon) {
-        status.textContent = `Player ${currentPlayer} wins!`;
-        gameActive = false;
-        scores[currentPlayer]++;
-        updateScoreDisplay();
-        showWinAnimation();
-        stopTimer();
-        return;
-    }
-
-    const roundDraw = !gameState.includes('');
-    if (roundDraw) {
-        status.textContent = "It's a draw!";
-        gameActive = false;
-        stopTimer();
-        return;
-    }
+    return false;
 }
 
-function getWinningConditions() {
-    const winningConditions = [];
+function getWinPatterns() {
+    const patterns = [];
 
     // Rows
     for (let i = 0; i < boardSize; i++) {
-        winningConditions.push(Array.from({length: boardSize}, (_, j) => i * boardSize + j));
+        patterns.push(Array.from({length: boardSize}, (_, j) => i * boardSize + j));
     }
 
     // Columns
     for (let i = 0; i < boardSize; i++) {
-        winningConditions.push(Array.from({length: boardSize}, (_, j) => i + j * boardSize));
+        patterns.push(Array.from({length: boardSize}, (_, j) => i + j * boardSize));
     }
 
     // Diagonals
-    winningConditions.push(Array.from({length: boardSize}, (_, i) => i * (boardSize + 1)));
-    winningConditions.push(Array.from({length: boardSize}, (_, i) => (i + 1) * (boardSize - 1)));
+    patterns.push(Array.from({length: boardSize}, (_, i) => i * (boardSize + 1)));
+    patterns.push(Array.from({length: boardSize}, (_, i) => (i + 1) * (boardSize - 1)));
 
-    return winningConditions;
+    return patterns;
+}
+
+function isDraw() {
+    return gameState.every(cell => cell !== '');
+}
+
+function endGame(isDraw) {
+    gameActive = false;
+    if (isDraw) {
+        updateStatus("It's a draw!");
+    } else {
+        updateStatus(`Player ${currentPlayer} wins!`);
+        scores[currentPlayer]++;
+        updateScoreDisplay();
+        showWinAnimation();
+    }
+    stopTimer();
+}
+
+function updateStatus(message) {
+    status.textContent = message;
+    status.classList.add('change');
+    setTimeout(() => status.classList.remove('change'), 300);
+}
+
+function highlightWinningCells(pattern) {
+    pattern.forEach(index => {
+        document.querySelector(`[data-index="${index}"]`).classList.add('winning');
+    });
 }
 
 function resetGame() {
-    currentPlayer = 'X';
     gameState = Array(boardSize * boardSize).fill('');
+    currentPlayer = 'X';
     gameActive = true;
     moves = [];
-    status.textContent = `Player ${currentPlayer}'s turn`;
+    updateStatus(`Player ${currentPlayer}'s turn`);
     document.querySelectorAll('.cell').forEach(cell => {
         cell.textContent = '';
         cell.classList.remove('pop-in', 'winning');
@@ -158,6 +159,7 @@ function updateScoreDisplay() {
 
 function toggleTheme() {
     document.body.classList.toggle('dark-mode');
+    themeToggle.textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
 }
 
 function makeAiMove() {
@@ -179,8 +181,10 @@ function makeAiMove() {
     }
 
     if (move !== null) {
-        const cell = document.querySelector(`[data-index="${move}"]`);
-        cell.click();
+        setTimeout(() => {
+            const cell = document.querySelector(`[data-index="${move}"]`);
+            cell.click();
+        }, 500);
     }
 }
 
@@ -212,9 +216,10 @@ function getBestMove() {
 }
 
 function minimax(board, depth, isMaximizing) {
-    const result = checkWinner();
-    if (result !== null) {
-        return result === aiPlayer ? 10 - depth : depth - 10;
+    if (checkWinner()) {
+        return isMaximizing ? -10 + depth : 10 - depth;
+    } else if (isDraw()) {
+        return 0;
     }
 
     if (isMaximizing) {
@@ -240,16 +245,6 @@ function minimax(board, depth, isMaximizing) {
         }
         return bestScore;
     }
-}
-
-function checkWinner() {
-    const winningConditions = getWinningConditions();
-    for (let condition of winningConditions) {
-        if (condition.every(index => gameState[index] === 'X')) return 'X';
-        if (condition.every(index => gameState[index] === 'O')) return 'O';
-    }
-    if (!gameState.includes('')) return 'draw';
-    return null;
 }
 
 function startTimer() {
@@ -280,6 +275,7 @@ function updateMoveHistory() {
     moveHistory.innerHTML = moves.map((move, index) => 
         `<div>Move ${index + 1}: Player ${move.player} - Position ${move.position}</div>`
     ).join('');
+    moveHistory.scrollTop = moveHistory.scrollHeight;
 }
 
 function showWinAnimation() {
@@ -299,8 +295,17 @@ function createConfettiPiece() {
 }
 
 function getRandomColor() {
-    const colors = ['#f0f', '#0ff', '#ff0', '#0f0', '#00f', '#f00'];
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
     return colors[Math.floor(Math.random() * colors.length)];
+}
+
+function updateGameModeUI() {
+    difficultySelect.style.display = gameMode === 'pvp' ? 'none' : 'inline-block';
+    if (gameMode === 'cvc') {
+        aiPlayer = 'X';
+    } else {
+        aiPlayer = 'O';
+    }
 }
 
 // Event Listeners
@@ -308,7 +313,7 @@ resetButton.addEventListener('click', resetGame);
 themeToggle.addEventListener('click', toggleTheme);
 gameModeSelect.addEventListener('change', () => {
     gameMode = gameModeSelect.value;
-    difficultySelect.style.display = gameMode === 'pvp' ? 'none' : 'inline-block';
+    updateGameModeUI();
     resetGame();
 });
 boardSizeSelect.addEventListener('change', initializeGame);
