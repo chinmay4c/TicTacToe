@@ -1,14 +1,15 @@
 :root {
-    --bg-color: #f0f0f0;
-    --text-color: #333;
-    --cell-bg: #fff;
+    --bg-color: #f0f8ff;
+    --text-color: #2c3e50;
+    --cell-bg: #ffffff;
     --cell-border: #3498db;
     --hover-bg: #e3f2fd;
     --button-bg: #2ecc71;
-    --button-text: #fff;
+    --button-text: #ffffff;
     --winning-bg: #a7e9af;
     --header-bg: #3498db;
     --container-bg: #ecf0f1;
+    --shadow-color: rgba(0, 0, 0, 0.1);
 }
 
 body {
@@ -20,7 +21,7 @@ body {
     margin: 0;
     background-color: var(--bg-color);
     color: var(--text-color);
-    transition: background-color 0.3s, color 0.3s;
+    transition: background-color 0.5s ease, color 0.5s ease;
 }
 
 .game-container {
@@ -28,16 +29,18 @@ body {
     max-width: 600px;
     width: 100%;
     padding: 30px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px var(--shadow-color);
     border-radius: 20px;
     background-color: var(--container-bg);
+    transition: all 0.5s ease;
 }
 
 h1 {
     margin-bottom: 30px;
     color: var(--header-bg);
     font-size: 2.5em;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    text-shadow: 2px 2px 4px var(--shadow-color);
+    transition: color 0.3s ease;
 }
 
 .controls {
@@ -56,7 +59,8 @@ h1 {
     padding: 20px;
     background-color: var(--cell-border);
     border-radius: 15px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 5px 15px var(--shadow-color);
+    transition: all 0.3s ease;
 }
 
 .cell {
@@ -70,13 +74,13 @@ h1 {
     cursor: pointer;
     transition: all 0.3s ease;
     border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 .cell:hover {
     background-color: var(--hover-bg);
     transform: scale(1.05);
-    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 8px var(--shadow-color);
 }
 
 .cell.winning {
@@ -95,6 +99,7 @@ h1 {
     margin-bottom: 20px;
     font-weight: bold;
     color: var(--header-bg);
+    transition: color 0.3s ease;
 }
 
 .score {
@@ -105,7 +110,8 @@ h1 {
     background-color: var(--cell-bg);
     padding: 15px;
     border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px var(--shadow-color);
+    transition: all 0.3s ease;
 }
 
 button, select {
@@ -117,25 +123,26 @@ button, select {
     border: none;
     border-radius: 25px;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 6px var(--shadow-color);
 }
 
 button:hover, select:hover {
     opacity: 0.9;
     transform: translateY(-2px);
-    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 8px var(--shadow-color);
 }
 
 .dark-mode {
-    --bg-color: #2c3e50;
+    --bg-color: #1a2a3a;
     --text-color: #ecf0f1;
-    --cell-bg: #34495e;
+    --cell-bg: #2c3e50;
     --cell-border: #3498db;
-    --hover-bg: #2980b9;
+    --hover-bg: #34495e;
     --button-bg: #27ae60;
     --winning-bg: #27ae60;
     --header-bg: #3498db;
-    --container-bg: #34495e;
+    --container-bg: #2c3e50;
+    --shadow-color: rgba(0, 0, 0, 0.2);
 }
 
 @media (max-width: 480px) {
@@ -177,6 +184,7 @@ button:hover, select:hover {
     font-size: 1.2em;
     font-weight: bold;
     color: var(--header-bg);
+    transition: color 0.3s ease;
 }
 
 #move-history {
@@ -188,7 +196,8 @@ button:hover, select:hover {
     text-align: left;
     border-radius: 10px;
     background-color: var(--cell-bg);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: inset 0 2px 4px var(--shadow-color);
+    transition: all 0.3s ease;
 }
 
 #move-history::-webkit-scrollbar {
@@ -220,4 +229,66 @@ button:hover, select:hover {
 
 .confetti-piece {
     animation: confetti-fall 3s linear infinite;
+}
+
+/* New animations and enhancements */
+
+.game-container {
+    animation: fade-in 0.5s ease-out;
+}
+
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.cell {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.cell:active {
+    transform: scale(0.95);
+}
+
+button, select {
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+button:active, select:active {
+    transform: scale(0.95);
+}
+
+.winning {
+    animation: winner-glow 1.5s infinite alternate;
+}
+
+@keyframes winner-glow {
+    from { box-shadow: 0 0 5px #ffd700; }
+    to { box-shadow: 0 0 20px #ffd700; }
+}
+
+#status {
+    transition: all 0.3s ease;
+}
+
+#status.change {
+    animation: status-change 0.5s ease;
+}
+
+@keyframes status-change {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.dark-mode .game-container {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode button, .dark-mode select {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode button:hover, .dark-mode select:hover {
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
 }
