@@ -1,334 +1,223 @@
-const board = document.getElementById('board');
-const status = document.getElementById('status');
-const resetButton = document.getElementById('reset');
-const themeToggle = document.getElementById('theme-toggle');
-const gameModeSelect = document.getElementById('game-mode');
-const difficultySelect = document.getElementById('difficulty');
-const boardSizeSelect = document.getElementById('board-size');
-const scoreX = document.getElementById('score-x');
-const scoreO = document.getElementById('score-o');
-const timerDisplay = document.getElementById('timer');
-const winAnimation = document.getElementById('win-animation');
-const moveHistory = document.getElementById('move-history');
-
-let currentPlayer = 'X';
-let gameState;
-let gameActive = true;
-let scores = { X: 0, O: 0 };
-let aiPlayer = 'O';
-let gameMode = 'pvp';
-let boardSize = 3;
-let timer;
-let seconds = 0;
-let moves = [];
-
-function initializeGame() {
-    boardSize = parseInt(boardSizeSelect.value);
-    gameState = Array(boardSize * boardSize).fill('');
-    board.innerHTML = '';
-    board.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-    
-    for (let i = 0; i < boardSize * boardSize; i++) {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.setAttribute('data-index', i);
-        cell.addEventListener('click', handleCellClick);
-        board.appendChild(cell);
-    }
-
-    resetGame();
+:root {
+    --bg-color: #f0f0f0;
+    --text-color: #333;
+    --cell-bg: #fff;
+    --cell-border: #3498db;
+    --hover-bg: #e3f2fd;
+    --button-bg: #2ecc71;
+    --button-text: #fff;
+    --winning-bg: #a7e9af;
+    --header-bg: #3498db;
+    --container-bg: #ecf0f1;
 }
 
-function handleCellClick(event) {
-    const clickedCell = event.target;
-    const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
-
-    if (gameState[clickedCellIndex] !== '' || !gameActive) {
-        return;
-    }
-
-    gameState[clickedCellIndex] = currentPlayer;
-    clickedCell.textContent = currentPlayer;
-    clickedCell.classList.add('pop-in');
-    moves.push({ player: currentPlayer, position: clickedCellIndex });
-    updateMoveHistory();
-
-    checkResult();
-
-    if (gameActive) {
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-        status.textContent = `Player ${currentPlayer}'s turn`;
-
-        if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
-            setTimeout(makeAiMove, 500);
-        } else if (gameMode === 'cvc') {
-            setTimeout(makeAiMove, 500);
-        }
-    }
+body {
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
 }
 
-function checkResult() {
-    const winningConditions = getWinningConditions();
-    let roundWon = false;
-
-    for (let i = 0; i < winningConditions.length; i++) {
-        const winCondition = winningConditions[i];
-        let a = gameState[winCondition[0]];
-        if (a === '') continue;
-
-        let win = true;
-        for (let j = 1; j < winCondition.length; j++) {
-            if (gameState[winCondition[j]] !== a) {
-                win = false;
-                break;
-            }
-        }
-
-        if (win) {
-            roundWon = true;
-            winCondition.forEach(index => {
-                document.querySelector(`[data-index="${index}"]`).classList.add('winning');
-            });
-            break;
-        }
-    }
-
-    if (roundWon) {
-        status.textContent = `Player ${currentPlayer} wins!`;
-        gameActive = false;
-        scores[currentPlayer]++;
-        updateScoreDisplay();
-        showWinAnimation();
-        stopTimer();
-        return;
-    }
-
-    const roundDraw = !gameState.includes('');
-    if (roundDraw) {
-        status.textContent = "It's a draw!";
-        gameActive = false;
-        stopTimer();
-        return;
-    }
+.game-container {
+    text-align: center;
+    max-width: 600px;
+    width: 100%;
+    padding: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 20px;
+    background-color: var(--container-bg);
 }
 
-function getWinningConditions() {
-    const winningConditions = [];
-
-    // Rows
-    for (let i = 0; i < boardSize; i++) {
-        winningConditions.push(Array.from({length: boardSize}, (_, j) => i * boardSize + j));
-    }
-
-    // Columns
-    for (let i = 0; i < boardSize; i++) {
-        winningConditions.push(Array.from({length: boardSize}, (_, j) => i + j * boardSize));
-    }
-
-    // Diagonals
-    winningConditions.push(Array.from({length: boardSize}, (_, i) => i * (boardSize + 1)));
-    winningConditions.push(Array.from({length: boardSize}, (_, i) => (i + 1) * (boardSize - 1)));
-
-    return winningConditions;
+h1 {
+    margin-bottom: 30px;
+    color: var(--header-bg);
+    font-size: 2.5em;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
 }
 
-function resetGame() {
-    currentPlayer = 'X';
-    gameState = Array(boardSize * boardSize).fill('');
-    gameActive = true;
-    moves = [];
-    status.textContent = `Player ${currentPlayer}'s turn`;
-    document.querySelectorAll('.cell').forEach(cell => {
-        cell.textContent = '';
-        cell.classList.remove('pop-in', 'winning');
-    });
-    resetTimer();
-    startTimer();
-    updateMoveHistory();
+.controls {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
 
-    if (gameMode === 'cvc') {
-        makeAiMove();
+.board {
+    display: grid;
+    grid-gap: 15px;
+    margin-bottom: 30px;
+    justify-content: center;
+    padding: 20px;
+    background-color: var(--cell-border);
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.cell {
+    aspect-ratio: 1;
+    background-color: var(--cell-bg);
+    border: 3px solid var(--cell-border);
+    font-size: 2.5em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.cell:hover {
+    background-color: var(--hover-bg);
+    transform: scale(1.05);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.cell.winning {
+    background-color: var(--winning-bg);
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+#status {
+    font-size: 1.4em;
+    margin-bottom: 20px;
+    font-weight: bold;
+    color: var(--header-bg);
+}
+
+.score {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 30px;
+    font-size: 1.2em;
+    background-color: var(--cell-bg);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+button, select {
+    font-size: 1em;
+    padding: 12px 24px;
+    cursor: pointer;
+    background-color: var(--button-bg);
+    color: var(--button-text);
+    border: none;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+button:hover, select:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+}
+
+.dark-mode {
+    --bg-color: #2c3e50;
+    --text-color: #ecf0f1;
+    --cell-bg: #34495e;
+    --cell-border: #3498db;
+    --hover-bg: #2980b9;
+    --button-bg: #27ae60;
+    --winning-bg: #27ae60;
+    --header-bg: #3498db;
+    --container-bg: #34495e;
+}
+
+@media (max-width: 480px) {
+    .game-container {
+        padding: 20px;
     }
-}
 
-function updateScoreDisplay() {
-    scoreX.textContent = scores.X;
-    scoreO.textContent = scores.O;
-}
-
-function toggleTheme() {
-    document.body.classList.toggle('dark-mode');
-}
-
-function makeAiMove() {
-    if (!gameActive) return;
-
-    const difficulty = difficultySelect.value;
-    let move;
-
-    switch (difficulty) {
-        case 'easy':
-            move = getRandomEmptyCell();
-            break;
-        case 'medium':
-            move = Math.random() < 0.5 ? getBestMove() : getRandomEmptyCell();
-            break;
-        case 'hard':
-            move = getBestMove();
-            break;
+    .cell {
+        font-size: 2em;
     }
 
-    if (move !== null) {
-        const cell = document.querySelector(`[data-index="${move}"]`);
-        cell.click();
+    .controls {
+        flex-direction: column;
     }
 }
 
-function getRandomEmptyCell() {
-    const emptyCells = gameState.reduce((acc, cell, index) => {
-        if (cell === '') acc.push(index);
-        return acc;
-    }, []);
-    return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+.pop-in {
+    animation: pop-in 0.3s ease-out;
 }
 
-function getBestMove() {
-    let bestScore = -Infinity;
-    let bestMove;
-
-    for (let i = 0; i < gameState.length; i++) {
-        if (gameState[i] === '') {
-            gameState[i] = aiPlayer;
-            let score = minimax(gameState, 0, false);
-            gameState[i] = '';
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = i;
-            }
-        }
-    }
-
-    return bestMove;
+@keyframes pop-in {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
-function minimax(board, depth, isMaximizing) {
-    const result = checkWinner();
-    if (result !== null) {
-        return result === aiPlayer ? 1 : -1;
-    }
-
-    if (isMaximizing) {
-        let bestScore = -Infinity;
-        for (let i = 0; i < board.length; i++) {
-            if (board[i] === '') {
-                board[i] = aiPlayer;
-                let score = minimax(board, depth + 1, false);
-                board[i] = '';
-                bestScore = Math.max(score, bestScore);
-            }
-        }
-        return bestScore;
-    } else {
-        let bestScore = Infinity;
-        for (let i = 0; i < board.length; i++) {
-            if (board[i] === '') {
-                board[i] = aiPlayer === 'O' ? 'X' : 'O';
-                let score = minimax(board, depth + 1, true);
-                board[i] = '';
-                bestScore = Math.min(score, bestScore);
-            }
-        }
-        return bestScore;
-    }
+.confetti {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
 }
 
-function checkWinner() {
-    const winningConditions = getWinningConditions();
-    for (let i = 0; i < winningConditions.length; i++) {
-        const [a, b, c] = winningConditions[i];
-        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
-            return gameState[a];
-        }
-    }
-    if (!gameState.includes('')) return 'draw';
-    return null;
+#timer {
+    margin-top: 20px;
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--header-bg);
 }
 
-function updateGameMode() {
-    gameMode = gameModeSelect.value;
-    difficultySelect.style.display = (gameMode === 'pvc' || gameMode === 'cvc') ? 'inline-block' : 'none';
-    resetGame();
+#move-history {
+    margin-top: 30px;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 2px solid var(--cell-border);
+    padding: 15px;
+    text-align: left;
+    border-radius: 10px;
+    background-color: var(--cell-bg);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-function startTimer() {
-    timer = setInterval(() => {
-        seconds++;
-        updateTimerDisplay();
-    }, 1000);
+#move-history::-webkit-scrollbar {
+    width: 8px;
 }
 
-function stopTimer() {
-    clearInterval(timer);
+#move-history::-webkit-scrollbar-track {
+    background: var(--cell-bg);
 }
 
-function resetTimer() {
-    stopTimer();
-    seconds = 0;
-    updateTimerDisplay();
+#move-history::-webkit-scrollbar-thumb {
+    background-color: var(--cell-border);
+    border-radius: 4px;
 }
 
-function updateTimerDisplay() {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    timerDisplay.textContent = `Time: ${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+.confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #ffd300;
+    top: -10px;
+    opacity: 0;
 }
 
-function showWinAnimation() {
-    createConfetti();
-    setTimeout(() => {
-        winAnimation.innerHTML = '';
-    }, 3000);
+@keyframes confetti-fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
 
-function createConfetti() {
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-    for (let i = 0; i < 100; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti-piece';
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        confetti.style.left = Math.random() * 100 + 'vw';
-        confetti.style.animationDelay = Math.random() * 3 + 's';
-        winAnimation.appendChild(confetti);
-    }
+.confetti-piece {
+    animation: confetti-fall 3s linear infinite;
 }
-
-function updateMoveHistory() {
-    moveHistory.innerHTML = '';
-    moves.forEach((move, index) => {
-        const moveElement = document.createElement('div');
-        moveElement.textContent = `${index + 1}. Player ${move.player} -> ${getPositionName(move.position)}`;
-        moveHistory.appendChild(moveElement);
-    });
-    moveHistory.scrollTop = moveHistory.scrollHeight;
-}
-
-function getPositionName(position) {
-    const row = Math.floor(position / boardSize);
-    const col = position % boardSize;
-    return `Row ${row + 1}, Col ${col + 1}`;
-}
-
-function handleBoardSizeChange() {
-    initializeGame();
-}
-
-// Event listeners
-resetButton.addEventListener('click', resetGame);
-themeToggle.addEventListener('click', toggleTheme);
-gameModeSelect.addEventListener('change', updateGameMode);
-boardSizeSelect.addEventListener('change', handleBoardSizeChange);
-
-// Initialize the game
-initializeGame();
-updateGameMode();
-startTimer();
