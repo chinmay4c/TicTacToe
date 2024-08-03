@@ -191,3 +191,128 @@ function getRandomEmptyCell() {
     }, []);
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
+
+function getBestMove() {
+    let bestScore = -Infinity;
+    let bestMove;
+
+    for (let i = 0; i < gameState.length; i++) {
+        if (gameState[i] === '') {
+            gameState[i] = aiPlayer;
+            let score = minimax(gameState, 0, false);
+            gameState[i] = '';
+            if (score > bestScore) {
+                bestScore = score;
+                bestMove = i;
+            }
+        }
+    }
+
+    return bestMove;
+}
+
+function minimax(board, depth, isMaximizing) {
+    const result = checkWinner();
+    if (result !== null) {
+        return result === aiPlayer ? 10 - depth : depth - 10;
+    }
+
+    if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === '') {
+                board[i] = aiPlayer;
+                let score = minimax(board, depth + 1, false);
+                board[i] = '';
+                bestScore = Math.max(score, bestScore);
+            }
+        }
+        return bestScore;
+    } else {
+        let bestScore = Infinity;
+        for (let i = 0; i < board.length; i++) {
+            if (board[i] === '') {
+                board[i] = aiPlayer === 'X' ? 'O' : 'X';
+                let score = minimax(board, depth + 1, true);
+                board[i] = '';
+                bestScore = Math.min(score, bestScore);
+            }
+        }
+        return bestScore;
+    }
+}
+
+function checkWinner() {
+    const winningConditions = getWinningConditions();
+    for (let condition of winningConditions) {
+        if (condition.every(index => gameState[index] === 'X')) return 'X';
+        if (condition.every(index => gameState[index] === 'O')) return 'O';
+    }
+    if (!gameState.includes('')) return 'draw';
+    return null;
+}
+
+function startTimer() {
+    seconds = 0;
+    timer = setInterval(() => {
+        seconds++;
+        updateTimerDisplay();
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timer);
+}
+
+function resetTimer() {
+    stopTimer();
+    seconds = 0;
+    updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    timerDisplay.textContent = `Time: ${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function updateMoveHistory() {
+    moveHistory.innerHTML = moves.map((move, index) => 
+        `<div>Move ${index + 1}: Player ${move.player} - Position ${move.position}</div>`
+    ).join('');
+}
+
+function showWinAnimation() {
+    winAnimation.innerHTML = '';
+    for (let i = 0; i < 100; i++) {
+        createConfettiPiece();
+    }
+}
+
+function createConfettiPiece() {
+    const confetti = document.createElement('div');
+    confetti.classList.add('confetti-piece');
+    confetti.style.left = Math.random() * 100 + 'vw';
+    confetti.style.animationDelay = Math.random() * 3 + 's';
+    confetti.style.backgroundColor = getRandomColor();
+    winAnimation.appendChild(confetti);
+}
+
+function getRandomColor() {
+    const colors = ['#f0f', '#0ff', '#ff0', '#0f0', '#00f', '#f00'];
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Event Listeners
+resetButton.addEventListener('click', resetGame);
+themeToggle.addEventListener('click', toggleTheme);
+gameModeSelect.addEventListener('change', () => {
+    gameMode = gameModeSelect.value;
+    difficultySelect.style.display = gameMode === 'pvp' ? 'none' : 'inline-block';
+    resetGame();
+});
+boardSizeSelect.addEventListener('change', initializeGame);
+difficultySelect.addEventListener('change', resetGame);
+
+// Initialize the game
+initializeGame();
