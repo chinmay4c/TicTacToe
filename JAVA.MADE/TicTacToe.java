@@ -3,7 +3,8 @@ import java.util.Scanner;
 
 public class TicTacToe {
 
-    private static char[][] board = new char[3][3];
+    private static char[][] board;
+    private static int boardSize;
     private static char currentPlayer;
     private static int playerXWins = 0;
     private static int playerOWins = 0;
@@ -12,6 +13,10 @@ public class TicTacToe {
     private static Random random = new Random();
 
     public static void main(String[] args) {
+        System.out.print("Enter the board size (n x n): ");
+        boardSize = getValidInput(3, 20);
+        board = new char[boardSize][boardSize];
+        
         while (true) {
             mainMenu();
             initializeBoard();
@@ -68,24 +73,28 @@ public class TicTacToe {
 
     private static void showHelp() {
         System.out.println("\nTic-Tac-Toe is a simple game for two players.");
-        System.out.println("Players take turns marking a cell in a 3x3 grid with their symbol (X or O).");
-        System.out.println("The first player to get three of their symbols in a row (horizontally, vertically, or diagonally) wins the game.");
-        System.out.println("If all cells are marked and no player has three in a row, the game is a draw.\n");
+        System.out.println("Players take turns marking a cell in an " + boardSize + "x" + boardSize + " grid with their symbol (X or O).");
+        System.out.println("The first player to get " + boardSize + " of their symbols in a row (horizontally, vertically, or diagonally) wins the game.");
+        System.out.println("If all cells are marked and no player has " + boardSize + " in a row, the game is a draw.\n");
     }
 
     private static void initializeBoard() {
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
                 board[i][j] = '-';
             }
         }
     }
 
     private static void printBoard() {
-        System.out.println("  0 1 2");
-        for (int i = 0; i < 3; i++) {
+        System.out.print("   ");
+        for (int i = 0; i < boardSize; i++) {
             System.out.print(i + " ");
-            for (int j = 0; j < 3; j++) {
+        }
+        System.out.println();
+        for (int i = 0; i < boardSize; i++) {
+            System.out.print(i + "  ");
+            for (int j = 0; j < boardSize; j++) {
                 System.out.print(board[i][j] + " ");
             }
             System.out.println();
@@ -122,15 +131,15 @@ public class TicTacToe {
             col = findBestMove('X')[1];
         }
         // Take the center if available
-        else if (board[1][1] == '-') {
-            row = 1;
-            col = 1;
+        else if (board[boardSize / 2][boardSize / 2] == '-') {
+            row = boardSize / 2;
+            col = boardSize / 2;
         }
         // Take a random available move
         else {
             while (true) {
-                row = random.nextInt(3);
-                col = random.nextInt(3);
+                row = random.nextInt(boardSize);
+                col = random.nextInt(boardSize);
                 if (board[row][col] == '-') {
                     break;
                 }
@@ -141,31 +150,34 @@ public class TicTacToe {
     }
 
     private static int[] findBestMove(char player) {
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
+        int[] bestMove = null;
+
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
                 if (board[i][j] == '-') {
                     board[i][j] = player;
                     if (isWinner()) {
                         board[i][j] = '-';
-                        return new int[]{i, j};
+                        bestMove = new int[]{i, j};
+                        return bestMove;
                     }
                     board[i][j] = '-';
                 }
             }
         }
-        return null;
+        return bestMove;
     }
 
     private static int getValidInput(String coordinate) {
         int value;
         while (true) {
-            System.out.print(coordinate + " (0, 1, or 2): ");
+            System.out.print(coordinate + " (0 to " + (boardSize - 1) + "): ");
             if (scanner.hasNextInt()) {
                 value = scanner.nextInt();
-                if (value >= 0 && value <= 2) {
+                if (value >= 0 && value < boardSize) {
                     break;
                 } else {
-                    System.out.println("Invalid " + coordinate + ". Please enter 0, 1, or 2.");
+                    System.out.println("Invalid " + coordinate + ". Please enter a number between 0 and " + (boardSize - 1) + ".");
                 }
             } else {
                 System.out.println("Invalid input. Please enter a number.");
@@ -199,23 +211,56 @@ public class TicTacToe {
 
     private static boolean isWinner() {
         // Check rows and columns
-        for (int i = 0; i < 3; i++) {
-            if ((board[i][0] == currentPlayer && board[i][1] == currentPlayer && board[i][2] == currentPlayer) ||
-                (board[0][i] == currentPlayer && board[1][i] == currentPlayer && board[2][i] == currentPlayer)) {
+        for (int i = 0; i < boardSize; i++) {
+            if (checkLine(board[i]) || checkLine(getColumn(i))) {
                 return true;
             }
         }
         // Check diagonals
-        if ((board[0][0] == currentPlayer && board[1][1] == currentPlayer && board[2][2] == currentPlayer) ||
-            (board[0][2] == currentPlayer && board[1][1] == currentPlayer && board[2][0] == currentPlayer)) {
+        if (checkDiagonal() || checkAntiDiagonal()) {
             return true;
         }
         return false;
     }
 
+    private static boolean checkLine(char[] line) {
+        for (int i = 1; i < boardSize; i++) {
+            if (line[i] != currentPlayer) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static char[] getColumn(int col) {
+        char[] column = new char[boardSize];
+        for (int i = 0; i < boardSize; i++) {
+            column[i] = board[i][col];
+        }
+        return column;
+    }
+
+    private static boolean checkDiagonal() {
+        for (int i = 1; i < boardSize; i++) {
+            if (board[i][i] != currentPlayer) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean checkAntiDiagonal() {
+        for (int i = 1; i < boardSize; i++) {
+            if (board[i][boardSize - 1 - i] != currentPlayer) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean isBoardFull() {
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
                 if (board[i][j] == '-') {
                     return false;
                 }
