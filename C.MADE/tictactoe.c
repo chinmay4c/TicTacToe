@@ -15,46 +15,36 @@ void getComputerMove(int *row, int *col, char board[SIZE][SIZE]);
 int minimax(char board[SIZE][SIZE], int depth, int isMaximizing);
 int evaluateBoard(char board[SIZE][SIZE]);
 int isBoardFull(char board[SIZE][SIZE]);
+void printInstructions();
+void printGameStatus(int result, char player);
+void clearScreen();
+void playGame();
+void initializeBoard(char board[SIZE][SIZE]);
 
 int main() {
-    char board[SIZE][SIZE] = { {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY}, {EMPTY, EMPTY, EMPTY} };
-    int row, col;
-    int player = 1; // Player 1 starts
-    int win = 0;
-    int draw = 0;
-
     srand(time(NULL)); // Seed the random number generator
 
-    while (!win && !draw) {
-        printBoard(board);
-
-        if (player == 1) {
-            printf("Player %d's turn (row and column): ", player);
-            getMove(&row, &col, 'X');
-        } else {
-            printf("Computer's turn:\n");
-            getComputerMove(&row, &col, board);
-        }
-
-        if (isValidMove(board, row, col)) {
-            makeMove(board, row, col, (player == 1) ? 'X' : 'O');
-            win = checkWin(board);
-            draw = checkDraw(board);
-            player = (player == 1) ? 2 : 1; // Switch player
-        } else {
-            printf("Invalid move. Try again.\n");
-        }
-    }
-
-    printBoard(board);
-
-    if (win) {
-        printf("Player %d wins!\n", (player == 1) ? 2 : 1);
-    } else if (draw) {
-        printf("The game is a draw.\n");
-    }
+    char playAgain;
+    do {
+        playGame();
+        printf("Do you want to play again? (y/n): ");
+        scanf(" %c", &playAgain);
+    } while (playAgain == 'y' || playAgain == 'Y');
 
     return 0;
+}
+
+void printInstructions() {
+    printf("Welcome to Tic-Tac-Toe!\n");
+    printf("You will play as 'X' against the computer, which plays as 'O'.\n");
+    printf("Enter the row and column numbers (1 to %d) to make your move.\n", SIZE);
+    printf("The game board is represented as follows:\n");
+    printf("1 2 3\n");
+    printf("1 | 2 | 3\n");
+    printf("---------\n");
+    printf("4 | 5 | 6\n");
+    printf("---------\n");
+    printf("7 | 8 | 9\n\n");
 }
 
 void printBoard(char board[SIZE][SIZE]) {
@@ -100,7 +90,7 @@ void getComputerMove(int *row, int *col, char board[SIZE][SIZE]) {
         for (int j = 0; j < SIZE; j++) {
             if (board[i][j] == EMPTY) {
                 board[i][j] = 'O'; // Computer's move
-                int score = minimax(board, 0, 0); // 0 for minimizing player (AI)
+                int score = minimax(board, 0, 1); // 1 for maximizing player (AI)
                 board[i][j] = EMPTY; // Undo move
                 if (score > bestScore) {
                     bestScore = score;
@@ -186,4 +176,68 @@ int checkWin(char board[SIZE][SIZE]) {
 
 int checkDraw(char board[SIZE][SIZE]) {
     return isBoardFull(board) && !checkWin(board);
+}
+
+void printGameStatus(int result, char player) {
+    if (result == 1) {
+        printf("Player %c wins!\n", player);
+    } else if (result == 2) {
+        printf("The game is a draw.\n");
+    } else {
+        printf("Unexpected game status.\n");
+    }
+}
+
+void clearScreen() {
+    // System-specific clear screen command
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+}
+
+void initializeBoard(char board[SIZE][SIZE]) {
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            board[i][j] = EMPTY;
+        }
+    }
+}
+
+void playGame() {
+    char board[SIZE][SIZE];
+    initializeBoard(board);
+
+    int row, col;
+    int player = 1; // Player 1 starts
+    int win = 0;
+    int draw = 0;
+
+    clearScreen();
+    printInstructions();
+
+    while (!win && !draw) {
+        printBoard(board);
+
+        if (player == 1) {
+            printf("Player %d's turn (row and column): ", player);
+            getMove(&row, &col, 'X');
+        } else {
+            printf("Computer's turn:\n");
+            getComputerMove(&row, &col, board);
+        }
+
+        if (isValidMove(board, row, col)) {
+            makeMove(board, row, col, (player == 1) ? 'X' : 'O');
+            win = checkWin(board);
+            draw = checkDraw(board);
+            player = (player == 1) ? 2 : 1; // Switch player
+        } else {
+            printf("Invalid move. Try again.\n");
+        }
+    }
+
+    printBoard(board);
+    printGameStatus(win ? 1 : (draw ? 2 : 0), (player == 1) ? 'O' : 'X');
 }
