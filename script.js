@@ -21,6 +21,8 @@ let boardSize = 3;
 let timer;
 let seconds = 0;
 let moves = [];
+let aiDifficulty = 'easy';
+let depthLimit = 5;
 
 function initializeGame() {
     boardSize = parseInt(boardSizeSelect.value);
@@ -165,10 +167,8 @@ function toggleTheme() {
 function makeAiMove() {
     if (!gameActive) return;
 
-    const difficulty = difficultySelect.value;
     let move;
-
-    switch (difficulty) {
+    switch (aiDifficulty) {
         case 'easy':
             move = getRandomEmptyCell();
             break;
@@ -177,6 +177,9 @@ function makeAiMove() {
             break;
         case 'hard':
             move = getBestMove();
+            break;
+        case 'expert':
+            move = getExpertMove();
             break;
     }
 
@@ -195,22 +198,22 @@ function getRandomEmptyCell() {
 
 function getSmartMove() {
     // Check for winning move
-    for (let i = 0; i < gameState.length; i++) {
-        if (gameState[i] === '') {
-            gameState[i] = currentPlayer;
-            if (checkWinner()) {
-                gameState[i] = '';
-                return i;
-            }
-            gameState[i] = '';
-        }
-    }
+    const winningMove = findWinningMove(currentPlayer);
+    if (winningMove !== null) return winningMove;
 
     // Check for blocking opponent's winning move
     const opponent = currentPlayer === 'X' ? 'O' : 'X';
+    const blockingMove = findWinningMove(opponent);
+    if (blockingMove !== null) return blockingMove;
+
+    // If no winning or blocking move, choose a strategic position
+    return getStrategicMove();
+}
+
+function findWinningMove(player) {
     for (let i = 0; i < gameState.length; i++) {
         if (gameState[i] === '') {
-            gameState[i] = opponent;
+            gameState[i] = player;
             if (checkWinner()) {
                 gameState[i] = '';
                 return i;
@@ -218,21 +221,22 @@ function getSmartMove() {
             gameState[i] = '';
         }
     }
+    return null;
+}
 
-    // If no winning or blocking move, choose a strategic position
+function getStrategicMove() {
     const corners = [0, boardSize - 1, boardSize * (boardSize - 1), boardSize * boardSize - 1];
     const availableCorners = corners.filter(corner => gameState[corner] === '');
+    
     if (availableCorners.length > 0) {
         return availableCorners[Math.floor(Math.random() * availableCorners.length)];
     }
 
-    // If no corners available, try the center
     const center = Math.floor(boardSize * boardSize / 2);
     if (gameState[center] === '') {
         return center;
     }
 
-    // If neither corners nor center are available, choose a random empty cell
     return getRandomEmptyCell();
 }
 
@@ -243,7 +247,7 @@ function getBestMove() {
     for (let i = 0; i < gameState.length; i++) {
         if (gameState[i] === '') {
             gameState[i] = currentPlayer;
-            let score = minimax(gameState, 0, false);
+            let score = minimax(gameState, 0, false, -Infinity, Infinity);
             gameState[i] = '';
             if (score > bestScore) {
                 bestScore = score;
@@ -255,10 +259,10 @@ function getBestMove() {
     return bestMove;
 }
 
-function minimax(board, depth, isMaximizing) {
+function minimax(board, depth, isMaximizing, alpha, beta) {
     if (checkWinner()) {
         return isMaximizing ? -10 + depth : 10 - depth;
-    } else if (isDraw()) {
+    } else if (isDraw() || depth === depthLimit) {
         return 0;
     }
 
@@ -267,9 +271,11 @@ function minimax(board, depth, isMaximizing) {
         for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
                 board[i] = currentPlayer;
-                let score = minimax(board, depth + 1, false);
+                let score = minimax(board, depth + 1, false, alpha, beta);
                 board[i] = '';
                 bestScore = Math.max(score, bestScore);
+                alpha = Math.max(alpha, bestScore);
+                if (beta <= alpha) break; // Alpha-beta pruning
             }
         }
         return bestScore;
@@ -278,65 +284,67 @@ function minimax(board, depth, isMaximizing) {
         for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
                 board[i] = currentPlayer === 'X' ? 'O' : 'X';
-                let score = minimax(board, depth + 1, true);
+                let score = minimax(board, depth + 1, true, alpha, beta);
                 board[i] = '';
                 bestScore = Math.min(score, bestScore);
+                beta = Math.min(beta, bestScore);
+                if (beta <= alpha) break; // Alpha-beta pruning
             }
         }
         return bestScore;
     }
 }
 
-function startTimer() {
-    seconds = 0;
-    timer = setInterval(() => {
-        seconds++;
-        updateTimerDisplay();
-    }, 1000);
-}
-
-function stopTimer() {
-    clearInterval(timer);
-}
-
-function resetTimer() {
-    stopTimer();
-    seconds = 0;
-    updateTimerDisplay();
-}
-
-function updateTimerDisplay() {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    timerDisplay.textContent = `Time: ${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
-}
-
-function updateMoveHistory() {
-    moveHistory.innerHTML = moves.map((move, index) => 
-        `<div>Move ${index + 1}: Player ${move.player} - Position ${move.position}</div>`
-    ).join('');
-    moveHistory.scrollTop = moveHistory.scrollHeight;
-}
-
-function showWinAnimation() {
-    winAnimation.innerHTML = '';
-    for (let i = 0; i < 100; i++) {
-        createConfettiPiece();
+function getExpertMove() {
+    // Implement opening book for common board sizes
+    if (boardSize === 3 && moves.length === 0) {
+        return getOptimalOpeningMove3x3();
     }
+
+    // Use iterative deepening with time limit
+    const timeLimit = 1000; // 1 second
+    const startTime = Date.now();
+    let bestMove;
+
+    for (let depth = 1; depth <= boardSize * boardSize; depth++) {
+        depthLimit = depth;
+        const move = getBestMove();
+        
+        if (Date.now() - startTime > timeLimit) {
+            break;
+        }
+        
+        bestMove = move;
+    }
+
+    return bestMove;
 }
 
-function createConfettiPiece() {
-    const confetti = document.createElement('div');
-    confetti.classList.add('confetti-piece');
-    confetti.style.left = Math.random() * 100 + 'vw';
-    confetti.style.animationDelay = Math.random() * 3 + 's';
-    confetti.style.backgroundColor = getRandomColor();
-    winAnimation.appendChild(confetti);
+function getOptimalOpeningMove3x3() {
+    const corners = [0, 2, 6, 8];
+    return corners[Math.floor(Math.random() * corners.length)];
 }
 
-function getRandomColor() {
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-    return colors[Math.floor(Math.random() * colors.length)];
+function evaluateBoard() {
+    let score = 0;
+    const winPatterns = getWinPatterns();
+
+    for (let pattern of winPatterns) {
+        const line = pattern.map(index => gameState[index]);
+        score += evaluateLine(line);
+    }
+
+    return score;
+}
+
+function evaluateLine(line) {
+    const aiCount = line.filter(cell => cell === aiPlayer).length;
+    const playerCount = line.filter(cell => cell !== aiPlayer && cell !== '').length;
+
+    if (aiCount === boardSize) return 100;
+    if (playerCount === boardSize) return -100;
+    if (aiCount > 0 && playerCount > 0) return 0;
+    return aiCount > playerCount ? aiCount : -playerCount;
 }
 
 function updateGameModeUI() {
@@ -357,7 +365,10 @@ gameModeSelect.addEventListener('change', () => {
     resetGame();
 });
 boardSizeSelect.addEventListener('change', initializeGame);
-difficultySelect.addEventListener('change', resetGame);
+difficultySelect.addEventListener('change', (e) => {
+    aiDifficulty = e.target.value;
+    resetGame();
+});
 
 // Initialize the game
 initializeGame();
