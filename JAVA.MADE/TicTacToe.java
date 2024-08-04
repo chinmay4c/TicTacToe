@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -11,9 +13,10 @@ public class TicTacToe {
     private static int draws = 0;
     private static Scanner scanner = new Scanner(System.in);
     private static Random random = new Random();
+    private static List<String> gameHistory = new ArrayList<>();
 
     public static void main(String[] args) {
-        System.out.print("Enter the board size (n x n): ");
+        System.out.print("Enter the board size (3 to 20): ");
         boardSize = getValidInput(3, 20);
         board = new char[boardSize][boardSize];
         
@@ -33,17 +36,23 @@ public class TicTacToe {
                     System.out.println("Player " + currentPlayer + " wins!");
                     updateScore(currentPlayer);
                     printScore();
+                    gameHistory.add("Player " + currentPlayer + " won!");
                     break;
                 }
                 if (isBoardFull()) {
                     System.out.println("The game is a draw!");
                     draws++;
                     printScore();
+                    gameHistory.add("The game is a draw.");
                     break;
                 }
                 switchPlayer();
             }
             if (!playAgain()) {
+                System.out.println("Game History:");
+                for (String record : gameHistory) {
+                    System.out.println(record);
+                }
                 System.out.println("Thank you for playing!");
                 break;
             }
@@ -51,7 +60,7 @@ public class TicTacToe {
     }
 
     private static void mainMenu() {
-        System.out.println("Welcome to Tic-Tac-Toe!");
+        System.out.println("\nWelcome to Tic-Tac-Toe!");
         System.out.println("1. Play");
         System.out.println("2. Help");
         System.out.println("3. Exit");
@@ -87,18 +96,23 @@ public class TicTacToe {
     }
 
     private static void printBoard() {
-        System.out.print("   ");
+        System.out.println("   " + String.join(" ", generateIndexLine()));
         for (int i = 0; i < boardSize; i++) {
             System.out.print(i + " ");
-        }
-        System.out.println();
-        for (int i = 0; i < boardSize; i++) {
-            System.out.print(i + "  ");
             for (int j = 0; j < boardSize; j++) {
-                System.out.print(board[i][j] + " ");
+                char cell = board[i][j];
+                System.out.print(cell + " ");
             }
             System.out.println();
         }
+    }
+
+    private static List<String> generateIndexLine() {
+        List<String> indexLine = new ArrayList<>();
+        for (int i = 0; i < boardSize; i++) {
+            indexLine.add(String.valueOf(i));
+        }
+        return indexLine;
     }
 
     private static void playerMove() {
@@ -118,54 +132,62 @@ public class TicTacToe {
 
     private static void computerMove() {
         System.out.println("Computer's turn:");
-        int row, col;
-
-        // Check if computer can win in the next move
-        if (findBestMove('O') != null) {
-            row = findBestMove('O')[0];
-            col = findBestMove('O')[1];
-        }
-        // Block player from winning
-        else if (findBestMove('X') != null) {
-            row = findBestMove('X')[0];
-            col = findBestMove('X')[1];
-        }
-        // Take the center if available
-        else if (board[boardSize / 2][boardSize / 2] == '-') {
-            row = boardSize / 2;
-            col = boardSize / 2;
-        }
-        // Take a random available move
-        else {
-            while (true) {
-                row = random.nextInt(boardSize);
-                col = random.nextInt(boardSize);
-                if (board[row][col] == '-') {
-                    break;
-                }
-            }
-        }
+        int[] bestMove = minimax(board, currentPlayer);
+        int row = bestMove[0];
+        int col = bestMove[1];
 
         board[row][col] = currentPlayer;
     }
 
-    private static int[] findBestMove(char player) {
-        int[] bestMove = null;
+    private static int[] minimax(char[][] board, char player) {
+        char opponent = (player == 'X') ? 'O' : 'X';
+        int bestScore = (player == 'X') ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+        int[] bestMove = {-1, -1};
 
         for (int i = 0; i < boardSize; i++) {
             for (int j = 0; j < boardSize; j++) {
                 if (board[i][j] == '-') {
                     board[i][j] = player;
-                    if (isWinner()) {
-                        board[i][j] = '-';
-                        bestMove = new int[]{i, j};
-                        return bestMove;
-                    }
+                    int score = minimaxScore(board, player);
                     board[i][j] = '-';
+
+                    if ((player == 'X' && score > bestScore) || (player == 'O' && score < bestScore)) {
+                        bestScore = score;
+                        bestMove[0] = i;
+                        bestMove[1] = j;
+                    }
                 }
             }
         }
         return bestMove;
+    }
+
+    private static int minimaxScore(char[][] board, char player) {
+        char opponent = (player == 'X') ? 'O' : 'X';
+
+        if (isWinner()) {
+            return (player == 'X') ? 1 : -1;
+        }
+        if (isBoardFull()) {
+            return 0;
+        }
+
+        int bestScore = (player == 'X') ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
+                if (board[i][j] == '-') {
+                    board[i][j] = player;
+                    int score = minimaxScore(board, opponent);
+                    board[i][j] = '-';
+
+                    if ((player == 'X' && score > bestScore) || (player == 'O' && score < bestScore)) {
+                        bestScore = score;
+                    }
+                }
+            }
+        }
+        return bestScore;
     }
 
     private static int getValidInput(String coordinate) {
@@ -278,7 +300,7 @@ public class TicTacToe {
     }
 
     private static void printScore() {
-        System.out.println("Scoreboard:");
+        System.out.println("\nScoreboard:");
         System.out.println("Player X: " + playerXWins + " wins");
         System.out.println("Player O: " + playerOWins + " wins");
         System.out.println("Draws: " + draws);
