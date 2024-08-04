@@ -50,10 +50,21 @@ function handleCellClick(event) {
         return;
     }
 
-    gameState[clickedCellIndex] = currentPlayer;
-    clickedCell.textContent = currentPlayer;
-    clickedCell.classList.add('pop-in');
-    moves.push({ player: currentPlayer, position: clickedCellIndex });
+    makeMove(clickedCellIndex);
+
+    if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
+        setTimeout(makeAiMove, 500);
+    } else if (gameMode === 'cvc') {
+        setTimeout(makeAiMove, 500);
+    }
+}
+
+function makeMove(cellIndex) {
+    gameState[cellIndex] = currentPlayer;
+    const cell = document.querySelector(`[data-index="${cellIndex}"]`);
+    cell.textContent = currentPlayer;
+    cell.classList.add('pop-in');
+    moves.push({ player: currentPlayer, position: cellIndex });
     updateMoveHistory();
 
     if (checkWinner()) {
@@ -63,20 +74,13 @@ function handleCellClick(event) {
     } else {
         currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
         updateStatus(`Player ${currentPlayer}'s turn`);
-
-        if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
-            setTimeout(makeAiMove, 500);
-        } else if (gameMode === 'cvc') {
-            setTimeout(makeAiMove, 500);
-        }
     }
 }
 
 function checkWinner() {
     const winPatterns = getWinPatterns();
     for (let pattern of winPatterns) {
-        const [a, b, c] = pattern;
-        if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+        if (pattern.every(index => gameState[index] === currentPlayer)) {
             highlightWinningCells(pattern);
             return true;
         }
@@ -87,14 +91,10 @@ function checkWinner() {
 function getWinPatterns() {
     const patterns = [];
 
-    // Rows
+    // Rows and Columns
     for (let i = 0; i < boardSize; i++) {
-        patterns.push(Array.from({length: boardSize}, (_, j) => i * boardSize + j));
-    }
-
-    // Columns
-    for (let i = 0; i < boardSize; i++) {
-        patterns.push(Array.from({length: boardSize}, (_, j) => i + j * boardSize));
+        patterns.push(Array.from({length: boardSize}, (_, j) => i * boardSize + j)); // Row
+        patterns.push(Array.from({length: boardSize}, (_, j) => i + j * boardSize)); // Column
     }
 
     // Diagonals
@@ -173,7 +173,7 @@ function makeAiMove() {
             move = getRandomEmptyCell();
             break;
         case 'medium':
-            move = Math.random() < 0.5 ? getBestMove() : getRandomEmptyCell();
+            move = Math.random() < 0.7 ? getSmartMove() : getRandomEmptyCell();
             break;
         case 'hard':
             move = getBestMove();
@@ -181,10 +181,7 @@ function makeAiMove() {
     }
 
     if (move !== null) {
-        setTimeout(() => {
-            const cell = document.querySelector(`[data-index="${move}"]`);
-            cell.click();
-        }, 500);
+        setTimeout(() => makeMove(move), 500);
     }
 }
 
@@ -196,13 +193,56 @@ function getRandomEmptyCell() {
     return emptyCells[Math.floor(Math.random() * emptyCells.length)];
 }
 
+function getSmartMove() {
+    // Check for winning move
+    for (let i = 0; i < gameState.length; i++) {
+        if (gameState[i] === '') {
+            gameState[i] = currentPlayer;
+            if (checkWinner()) {
+                gameState[i] = '';
+                return i;
+            }
+            gameState[i] = '';
+        }
+    }
+
+    // Check for blocking opponent's winning move
+    const opponent = currentPlayer === 'X' ? 'O' : 'X';
+    for (let i = 0; i < gameState.length; i++) {
+        if (gameState[i] === '') {
+            gameState[i] = opponent;
+            if (checkWinner()) {
+                gameState[i] = '';
+                return i;
+            }
+            gameState[i] = '';
+        }
+    }
+
+    // If no winning or blocking move, choose a strategic position
+    const corners = [0, boardSize - 1, boardSize * (boardSize - 1), boardSize * boardSize - 1];
+    const availableCorners = corners.filter(corner => gameState[corner] === '');
+    if (availableCorners.length > 0) {
+        return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+    }
+
+    // If no corners available, try the center
+    const center = Math.floor(boardSize * boardSize / 2);
+    if (gameState[center] === '') {
+        return center;
+    }
+
+    // If neither corners nor center are available, choose a random empty cell
+    return getRandomEmptyCell();
+}
+
 function getBestMove() {
     let bestScore = -Infinity;
     let bestMove;
 
     for (let i = 0; i < gameState.length; i++) {
         if (gameState[i] === '') {
-            gameState[i] = aiPlayer;
+            gameState[i] = currentPlayer;
             let score = minimax(gameState, 0, false);
             gameState[i] = '';
             if (score > bestScore) {
@@ -226,7 +266,7 @@ function minimax(board, depth, isMaximizing) {
         let bestScore = -Infinity;
         for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
-                board[i] = aiPlayer;
+                board[i] = currentPlayer;
                 let score = minimax(board, depth + 1, false);
                 board[i] = '';
                 bestScore = Math.max(score, bestScore);
@@ -237,7 +277,7 @@ function minimax(board, depth, isMaximizing) {
         let bestScore = Infinity;
         for (let i = 0; i < board.length; i++) {
             if (board[i] === '') {
-                board[i] = aiPlayer === 'X' ? 'O' : 'X';
+                board[i] = currentPlayer === 'X' ? 'O' : 'X';
                 let score = minimax(board, depth + 1, true);
                 board[i] = '';
                 bestScore = Math.min(score, bestScore);
