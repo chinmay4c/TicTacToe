@@ -1,44 +1,61 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <string.h>
 
 #define SIZE 3
 #define EMPTY ' '
+#define PLAYER_X 'X'
+#define PLAYER_O 'O'
+
+typedef struct {
+    int xWins;
+    int oWins;
+    int draws;
+} GameStats;
 
 void printBoard(char board[SIZE][SIZE]);
 void printLine(char board[SIZE][SIZE], int row);
 void printHeader();
-int checkWin(char board[SIZE][SIZE]);
-int checkDraw(char board[SIZE][SIZE]);
-void getMove(int *row, int *col, char player);
-int isValidMove(char board[SIZE][SIZE], int row, int col);
-void makeMove(char board[SIZE][SIZE], int row, int col, char player);
-void getComputerMove(int *row, int *col, char board[SIZE][SIZE]);
-int minimax(char board[SIZE][SIZE], int depth, int isMaximizing);
-int evaluateBoard(char board[SIZE][SIZE]);
-int isBoardFull(char board[SIZE][SIZE]);
 void printInstructions();
 void printGameStatus(int result, char player);
 void clearScreen();
 void initializeBoard(char board[SIZE][SIZE]);
-void playGame();
+void playGame(GameStats *stats);
 void chooseDifficulty(int *difficulty);
+void saveStats(GameStats *stats);
+void loadStats(GameStats *stats);
 int getDifficultyAI(int difficulty);
+void getMove(int *row, int *col, char player);
+int isValidMove(char board[SIZE][SIZE], int row, int col);
+void makeMove(char board[SIZE][SIZE], int row, int col, char player);
+void getComputerMove(int *row, int *col, char board[SIZE][SIZE], int difficulty);
+int minimax(char board[SIZE][SIZE], int depth, int isMaximizing);
+int evaluateBoard(char board[SIZE][SIZE]);
+int isBoardFull(char board[SIZE][SIZE]);
+int checkWin(char board[SIZE][SIZE]);
+int checkDraw(char board[SIZE][SIZE]);
+void printHighScores(GameStats *stats);
 
 int main() {
     srand(time(NULL)); // Seed the random number generator
 
     char playAgain;
     int difficulty;
+    GameStats stats = {0, 0, 0};
+
+    loadStats(&stats);
 
     printInstructions();
     do {
         chooseDifficulty(&difficulty);
-        playGame(difficulty);
+        playGame(&stats);
+        printHighScores(&stats);
         printf("Do you want to play again? (y/n): ");
         scanf(" %c", &playAgain);
     } while (playAgain == 'y' || playAgain == 'Y');
 
+    saveStats(&stats);
     return 0;
 }
 
@@ -111,15 +128,14 @@ void getComputerMove(int *row, int *col, char board[SIZE][SIZE], int difficulty)
     int bestScore = -1000;
     int bestRow = -1;
     int bestCol = -1;
-
     int depth = getDifficultyAI(difficulty);
 
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             if (board[i][j] == EMPTY) {
-                board[i][j] = 'O'; // Computer's move
-                int score = minimax(board, 0, 1); // 1 for maximizing player (AI)
-                board[i][j] = EMPTY; // Undo move
+                board[i][j] = PLAYER_O;
+                int score = minimax(board, 0, 1);
+                board[i][j] = EMPTY;
                 if (score > bestScore) {
                     bestScore = score;
                     bestRow = i;
@@ -154,7 +170,7 @@ int minimax(char board[SIZE][SIZE], int depth, int isMaximizing) {
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 if (board[i][j] == EMPTY) {
-                    board[i][j] = 'O';
+                    board[i][j] = PLAYER_O;
                     best = (best > minimax(board, depth + 1, 0)) ? best : minimax(board, depth + 1, 0);
                     board[i][j] = EMPTY;
                 }
@@ -166,7 +182,7 @@ int minimax(char board[SIZE][SIZE], int depth, int isMaximizing) {
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 if (board[i][j] == EMPTY) {
-                    board[i][j] = 'X';
+                    board[i][j] = PLAYER_X;
                     best = (best < minimax(board, depth + 1, 1)) ? best : minimax(board, depth + 1, 1);
                     board[i][j] = EMPTY;
                 }
@@ -179,21 +195,21 @@ int minimax(char board[SIZE][SIZE], int depth, int isMaximizing) {
 int evaluateBoard(char board[SIZE][SIZE]) {
     for (int i = 0; i < SIZE; i++) {
         if (board[i][0] == board[i][1] && board[i][1] == board[i][2]) {
-            if (board[i][0] == 'O') return 10;
-            if (board[i][0] == 'X') return -10;
+            if (board[i][0] == PLAYER_O) return 10;
+            if (board[i][0] == PLAYER_X) return -10;
         }
         if (board[0][i] == board[1][i] && board[1][i] == board[2][i]) {
-            if (board[0][i] == 'O') return 10;
-            if (board[0][i] == 'X') return -10;
+            if (board[0][i] == PLAYER_O) return 10;
+            if (board[0][i] == PLAYER_X) return -10;
         }
     }
     if (board[0][0] == board[1][1] && board[1][1] == board[2][2]) {
-        if (board[0][0] == 'O') return 10;
-        if (board[0][0] == 'X') return -10;
+        if (board[0][0] == PLAYER_O) return 10;
+        if (board[0][0] == PLAYER_X) return -10;
     }
     if (board[0][2] == board[1][1] && board[1][1] == board[2][0]) {
-        if (board[0][2] == 'O') return 10;
-        if (board[0][2] == 'X') return -10;
+        if (board[0][2] == PLAYER_O) return 10;
+        if (board[0][2] == PLAYER_X) return -10;
     }
     return 0;
 }
@@ -242,7 +258,7 @@ void initializeBoard(char board[SIZE][SIZE]) {
     }
 }
 
-void playGame(int difficulty) {
+void playGame(GameStats *stats) {
     char board[SIZE][SIZE];
     initializeBoard(board);
 
@@ -250,20 +266,22 @@ void playGame(int difficulty) {
     int player = 1; // Player 1 starts
     int win = 0;
     int draw = 0;
+    char currentPlayer;
 
     while (!win && !draw) {
         printBoard(board);
+        currentPlayer = (player == 1) ? PLAYER_X : PLAYER_O;
 
         if (player == 1) {
             printf("Player %d's turn (row and column): ", player);
-            getMove(&row, &col, 'X');
+            getMove(&row, &col, PLAYER_X);
         } else {
-            printf("Computer (Difficulty %d) is thinking...\n", difficulty);
-            getComputerMove(&row, &col, board, difficulty);
+            printf("Computer (Difficulty %d) is thinking...\n", stats->difficulty);
+            getComputerMove(&row, &col, board, stats->difficulty);
         }
 
         if (isValidMove(board, row, col)) {
-            makeMove(board, row, col, (player == 1) ? 'X' : 'O');
+            makeMove(board, row, col, currentPlayer);
             win = checkWin(board);
             draw = checkDraw(board);
             player = (player == 1) ? 2 : 1; // Switch player
@@ -273,5 +291,45 @@ void playGame(int difficulty) {
     }
 
     printBoard(board);
-    printGameStatus(win ? 1 : (draw ? 2 : 0), (player == 1) ? 'O' : 'X');
+    if (win) {
+        printGameStatus(1, currentPlayer);
+        if (currentPlayer == PLAYER_X) stats->xWins++;
+        else stats->oWins++;
+    } else {
+        printGameStatus(2, currentPlayer);
+        stats->draws++;
+    }
+}
+
+void saveStats(GameStats *stats) {
+    FILE *file = fopen("tictactoe_stats.txt", "w");
+    if (file != NULL) {
+        fprintf(file, "X Wins: %d\n", stats->xWins);
+        fprintf(file, "O Wins: %d\n", stats->oWins);
+        fprintf(file, "Draws: %d\n", stats->draws);
+        fclose(file);
+    } else {
+        printf("Error saving stats.\n");
+    }
+}
+
+void loadStats(GameStats *stats) {
+    FILE *file = fopen("tictactoe_stats.txt", "r");
+    if (file != NULL) {
+        fscanf(file, "X Wins: %d\n", &stats->xWins);
+        fscanf(file, "O Wins: %d\n", &stats->oWins);
+        fscanf(file, "Draws: %d\n", &stats->draws);
+        fclose(file);
+    } else {
+        stats->xWins = 0;
+        stats->oWins = 0;
+        stats->draws = 0;
+    }
+}
+
+void printHighScores(GameStats *stats) {
+    printf("Current High Scores:\n");
+    printf("X Wins: %d\n", stats->xWins);
+    printf("O Wins: %d\n", stats->oWins);
+    printf("Draws: %d\n", stats->draws);
 }
