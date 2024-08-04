@@ -15,7 +15,7 @@ let currentPlayer = 'X';
 let gameState;
 let gameActive = false;
 let scores = { X: 0, O: 0 };
-let aiPlayer = 'O';
+let aiPlayer = '';
 let gameMode = 'pvp';
 let boardSize = 3;
 let timer;
@@ -53,12 +53,6 @@ function handleCellClick(event) {
     }
 
     makeMove(clickedCellIndex);
-
-    if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
-        setTimeout(makeAiMove, 500);
-    } else if (gameMode === 'cvc') {
-        setTimeout(makeAiMove, 500);
-    }
 }
 
 function makeMove(cellIndex) {
@@ -69,14 +63,26 @@ function makeMove(cellIndex) {
     moves.push({ player: currentPlayer, position: cellIndex });
     updateMoveHistory();
 
-    if (checkWinner()) {
-        endGame(false);
-    } else if (isDraw()) {
-        endGame(true);
+    if (isGameOver()) {
+        endGame(isDraw());
     } else {
-        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+        switchPlayer();
         updateStatus(`Player ${currentPlayer}'s turn`);
+
+        if (gameMode === 'pvc' && currentPlayer === aiPlayer) {
+            aiDelay(makeAiMove);
+        } else if (gameMode === 'cvc') {
+            aiDelay(makeAiMove);
+        }
     }
+}
+
+function isGameOver() {
+    return checkWinner() || isDraw();
+}
+
+function switchPlayer() {
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
 }
 
 function checkWinner() {
@@ -150,7 +156,7 @@ function resetGame() {
     updateMoveHistory();
 
     if (gameMode === 'cvc') {
-        makeAiMove();
+        aiDelay(makeAiMove);
     }
 }
 
@@ -184,7 +190,7 @@ function makeAiMove() {
     }
 
     if (move !== null) {
-        setTimeout(() => makeMove(move), 500);
+        makeMove(move);
     }
 }
 
@@ -350,25 +356,85 @@ function evaluateLine(line) {
 function updateGameModeUI() {
     difficultySelect.style.display = gameMode === 'pvp' ? 'none' : 'inline-block';
     if (gameMode === 'cvc') {
-        aiPlayer = 'X';
+        aiPlayer = 'X'; // Both players are AI
+        if (gameActive) {
+            aiDelay(makeAiMove);
+        }
+    } else if (gameMode === 'pvc') {
+        aiPlayer = 'O'; // AI is always O in PvC mode
     } else {
-        aiPlayer = 'O';
+        aiPlayer = ''; // No AI in PvP mode
     }
+}
+
+function startTimer() {
+    seconds = 0;
+    timer = setInterval(() => {
+        seconds++;
+        timerDisplay.textContent = `Time: ${formatTime(seconds)}`;
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timer);
+}
+
+function resetTimer() {
+    stopTimer();
+    timerDisplay.textContent = 'Time: 00:00';
+}
+
+function formatTime(seconds) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
+function updateMoveHistory() {
+    moveHistory.innerHTML = moves.map((move, index) => 
+        `<div>Move ${index + 1}: Player ${move.player} - Position ${move.position}</div>`
+    ).join('');
+}
+
+function showWinAnimation() {
+    winAnimation.innerHTML = '';
+    for (let i = 0; i < 100; i++) {
+        const confetti = document.createElement('div');
+        confetti.classList.add('confetti-piece');
+        confetti.style.left = Math.random() * 100 + 'vw';
+        confetti.style.animationDelay = Math.random() * 3 + 's';
+        confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        winAnimation.appendChild(confetti);
+    }
+    setTimeout(() => {
+        winAnimation.innerHTML = '';
+    }, 3000);
+}
+
+function updateDifficulty() {
+    aiDifficulty = difficultySelect.value;
+    if (gameMode !== 'pvp' && gameActive) {
+        resetGame();
+    }
+}
+
+function changeGameMode() {
+    gameMode = gameModeSelect.value;
+    updateGameModeUI();
+    resetGame();
+}
+
+function aiDelay(callback) {
+    const delay = Math.random() * 500 + 500; // Random delay between 500ms and 1000ms
+    setTimeout(callback, delay);
 }
 
 // Event Listeners
 resetButton.addEventListener('click', resetGame);
 themeToggle.addEventListener('click', toggleTheme);
-gameModeSelect.addEventListener('change', () => {
-    gameMode = gameModeSelect.value;
-    updateGameModeUI();
-    resetGame();
-});
+gameModeSelect.addEventListener('change', changeGameMode);
 boardSizeSelect.addEventListener('change', initializeGame);
-difficultySelect.addEventListener('change', (e) => {
-    aiDifficulty = e.target.value;
-    resetGame();
-});
+difficultySelect.addEventListener('change', updateDifficulty);
 
 // Initialize the game
 initializeGame();
