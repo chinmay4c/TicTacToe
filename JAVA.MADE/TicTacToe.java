@@ -1,10 +1,15 @@
+import java.util.Random;
 import java.util.Scanner;
 
 public class TicTacToe {
 
     private static char[][] board = new char[3][3];
     private static char currentPlayer;
+    private static int playerXWins = 0;
+    private static int playerOWins = 0;
+    private static int draws = 0;
     private static Scanner scanner = new Scanner(System.in);
+    private static Random random = new Random();
 
     public static void main(String[] args) {
         while (true) {
@@ -13,14 +18,22 @@ public class TicTacToe {
             currentPlayer = 'X';
             printBoard();
             while (true) {
-                playerMove();
+                if (currentPlayer == 'X') {
+                    playerMove();
+                } else {
+                    computerMove();
+                }
                 printBoard();
                 if (isWinner()) {
                     System.out.println("Player " + currentPlayer + " wins!");
+                    updateScore(currentPlayer);
+                    printScore();
                     break;
                 }
                 if (isBoardFull()) {
                     System.out.println("The game is a draw!");
+                    draws++;
+                    printScore();
                     break;
                 }
                 switchPlayer();
@@ -35,19 +48,29 @@ public class TicTacToe {
     private static void mainMenu() {
         System.out.println("Welcome to Tic-Tac-Toe!");
         System.out.println("1. Play");
-        System.out.println("2. Exit");
+        System.out.println("2. Help");
+        System.out.println("3. Exit");
         while (true) {
             System.out.print("Enter your choice: ");
-            int choice = getValidInput(1, 2);
+            int choice = getValidInput(1, 3);
             if (choice == 1) {
                 break;
             } else if (choice == 2) {
+                showHelp();
+            } else if (choice == 3) {
                 System.out.println("Goodbye!");
                 System.exit(0);
             } else {
-                System.out.println("Invalid choice. Please choose 1 or 2.");
+                System.out.println("Invalid choice. Please choose 1, 2, or 3.");
             }
         }
+    }
+
+    private static void showHelp() {
+        System.out.println("\nTic-Tac-Toe is a simple game for two players.");
+        System.out.println("Players take turns marking a cell in a 3x3 grid with their symbol (X or O).");
+        System.out.println("The first player to get three of their symbols in a row (horizontally, vertically, or diagonally) wins the game.");
+        System.out.println("If all cells are marked and no player has three in a row, the game is a draw.\n");
     }
 
     private static void initializeBoard() {
@@ -82,6 +105,55 @@ public class TicTacToe {
                 System.out.println("This move is not valid. The cell is already occupied.");
             }
         }
+    }
+
+    private static void computerMove() {
+        System.out.println("Computer's turn:");
+        int row, col;
+
+        // Check if computer can win in the next move
+        if (findBestMove('O') != null) {
+            row = findBestMove('O')[0];
+            col = findBestMove('O')[1];
+        }
+        // Block player from winning
+        else if (findBestMove('X') != null) {
+            row = findBestMove('X')[0];
+            col = findBestMove('X')[1];
+        }
+        // Take the center if available
+        else if (board[1][1] == '-') {
+            row = 1;
+            col = 1;
+        }
+        // Take a random available move
+        else {
+            while (true) {
+                row = random.nextInt(3);
+                col = random.nextInt(3);
+                if (board[row][col] == '-') {
+                    break;
+                }
+            }
+        }
+
+        board[row][col] = currentPlayer;
+    }
+
+    private static int[] findBestMove(char player) {
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (board[i][j] == '-') {
+                    board[i][j] = player;
+                    if (isWinner()) {
+                        board[i][j] = '-';
+                        return new int[]{i, j};
+                    }
+                    board[i][j] = '-';
+                }
+            }
+        }
+        return null;
     }
 
     private static int getValidInput(String coordinate) {
@@ -150,6 +222,21 @@ public class TicTacToe {
             }
         }
         return true;
+    }
+
+    private static void updateScore(char winner) {
+        if (winner == 'X') {
+            playerXWins++;
+        } else if (winner == 'O') {
+            playerOWins++;
+        }
+    }
+
+    private static void printScore() {
+        System.out.println("Scoreboard:");
+        System.out.println("Player X: " + playerXWins + " wins");
+        System.out.println("Player O: " + playerOWins + " wins");
+        System.out.println("Draws: " + draws);
     }
 
     private static boolean playAgain() {
