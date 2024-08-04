@@ -6,6 +6,8 @@
 #define EMPTY ' '
 
 void printBoard(char board[SIZE][SIZE]);
+void printLine(char board[SIZE][SIZE], int row);
+void printHeader();
 int checkWin(char board[SIZE][SIZE]);
 int checkDraw(char board[SIZE][SIZE]);
 void getMove(int *row, int *col, char player);
@@ -18,15 +20,21 @@ int isBoardFull(char board[SIZE][SIZE]);
 void printInstructions();
 void printGameStatus(int result, char player);
 void clearScreen();
-void playGame();
 void initializeBoard(char board[SIZE][SIZE]);
+void playGame();
+void chooseDifficulty(int *difficulty);
+int getDifficultyAI(int difficulty);
 
 int main() {
     srand(time(NULL)); // Seed the random number generator
 
     char playAgain;
+    int difficulty;
+
+    printInstructions();
     do {
-        playGame();
+        chooseDifficulty(&difficulty);
+        playGame(difficulty);
         printf("Do you want to play again? (y/n): ");
         scanf(" %c", &playAgain);
     } while (playAgain == 'y' || playAgain == 'Y');
@@ -37,33 +45,51 @@ int main() {
 void printInstructions() {
     printf("Welcome to Tic-Tac-Toe!\n");
     printf("You will play as 'X' against the computer, which plays as 'O'.\n");
-    printf("Enter the row and column numbers (1 to %d) to make your move.\n", SIZE);
-    printf("The game board is represented as follows:\n");
-    printf("1 2 3\n");
-    printf("1 | 2 | 3\n");
-    printf("---------\n");
-    printf("4 | 5 | 6\n");
-    printf("---------\n");
-    printf("7 | 8 | 9\n\n");
+    printf("You can choose the difficulty level for the AI:\n");
+    printf("1. Easy\n");
+    printf("2. Medium\n");
+    printf("3. Hard\n");
+    printf("Enter the difficulty level (1-3):\n");
+}
+
+void chooseDifficulty(int *difficulty) {
+    int level;
+    while (1) {
+        printf("Difficulty level (1-3): ");
+        scanf("%d", &level);
+        if (level >= 1 && level <= 3) {
+            *difficulty = level;
+            break;
+        }
+        printf("Invalid choice. Please select a level between 1 and 3.\n");
+    }
 }
 
 void printBoard(char board[SIZE][SIZE]) {
-    printf("\n");
+    clearScreen();
+    printHeader();
     for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            printf(" %c ", board[i][j]);
-            if (j < SIZE - 1) printf("|");
-        }
-        printf("\n");
+        printLine(board, i);
         if (i < SIZE - 1) {
-            for (int j = 0; j < SIZE; j++) {
-                printf("---");
-                if (j < SIZE - 1) printf("|");
-            }
-            printf("\n");
+            printf("  ---|---|---\n");
         }
     }
     printf("\n");
+}
+
+void printLine(char board[SIZE][SIZE], int row) {
+    printf("%d ", row + 1);
+    for (int col = 0; col < SIZE; col++) {
+        printf(" %c ", board[row][col]);
+        if (col < SIZE - 1) {
+            printf("|");
+        }
+    }
+    printf("\n");
+}
+
+void printHeader() {
+    printf("   1   2   3\n");
 }
 
 void getMove(int *row, int *col, char player) {
@@ -81,10 +107,12 @@ void makeMove(char board[SIZE][SIZE], int row, int col, char player) {
     board[row][col] = player;
 }
 
-void getComputerMove(int *row, int *col, char board[SIZE][SIZE]) {
+void getComputerMove(int *row, int *col, char board[SIZE][SIZE], int difficulty) {
     int bestScore = -1000;
     int bestRow = -1;
     int bestCol = -1;
+
+    int depth = getDifficultyAI(difficulty);
 
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
@@ -103,6 +131,15 @@ void getComputerMove(int *row, int *col, char board[SIZE][SIZE]) {
 
     *row = bestRow;
     *col = bestCol;
+}
+
+int getDifficultyAI(int difficulty) {
+    switch (difficulty) {
+        case 1: return 1; // Easy
+        case 2: return 3; // Medium
+        case 3: return 5; // Hard
+        default: return 1;
+    }
 }
 
 int minimax(char board[SIZE][SIZE], int depth, int isMaximizing) {
@@ -205,7 +242,7 @@ void initializeBoard(char board[SIZE][SIZE]) {
     }
 }
 
-void playGame() {
+void playGame(int difficulty) {
     char board[SIZE][SIZE];
     initializeBoard(board);
 
@@ -214,9 +251,6 @@ void playGame() {
     int win = 0;
     int draw = 0;
 
-    clearScreen();
-    printInstructions();
-
     while (!win && !draw) {
         printBoard(board);
 
@@ -224,8 +258,8 @@ void playGame() {
             printf("Player %d's turn (row and column): ", player);
             getMove(&row, &col, 'X');
         } else {
-            printf("Computer's turn:\n");
-            getComputerMove(&row, &col, board);
+            printf("Computer (Difficulty %d) is thinking...\n", difficulty);
+            getComputerMove(&row, &col, board, difficulty);
         }
 
         if (isValidMove(board, row, col)) {
